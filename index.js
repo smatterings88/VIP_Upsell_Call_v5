@@ -23,6 +23,23 @@ const TWILIO_PHONE_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 // Ultravox configuration
 const ULTRAVOX_API_KEY = process.env.ULTRAVOX_API_KEY;
 
+function formatPhoneNumber(phoneNumber) {
+    // Remove all non-digit characters
+    const digits = phoneNumber.replace(/\D/g, '');
+    
+    // For US numbers (assuming US if no country code provided)
+    if (digits.length === 10) {
+        return `+1${digits}`;
+    }
+    
+    // If number already includes country code (11+ digits)
+    if (digits.length >= 11) {
+        return `+${digits}`;
+    }
+    
+    return null;
+}
+
 async function createUltravoxCall(clientName) {
     const systemPrompt = `
 You are a helpful assistant.
@@ -281,14 +298,15 @@ async function handleCall(req, res) {
             });
         }
 
-        // Validate phone number format
-        if (!/^\+\d{10,15}$/.test(phoneNumber)) {
+        // Format and validate phone number
+        const formattedNumber = formatPhoneNumber(phoneNumber);
+        if (!formattedNumber) {
             return res.status(400).json({
-                error: 'Invalid phone number format. Must be in E.164 format (e.g., +1234567890)'
+                error: 'Invalid phone number format. Please provide a valid phone number (e.g., 1234567890 or +1234567890)'
             });
         }
 
-        const callSid = await initiateCall(clientName, phoneNumber);
+        const callSid = await initiateCall(clientName, formattedNumber);
         res.json({ 
             success: true, 
             message: 'Call initiated successfully',
