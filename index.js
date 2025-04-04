@@ -1,5 +1,4 @@
 import twilio from 'twilio';
-import https from 'https';
 import express from 'express';
 
 // Validate environment variables
@@ -304,12 +303,12 @@ async function handleCall(req, res) {
     }
 }
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 // Wrap server startup in a try-catch block
 try {
-    app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Server running on http://0.0.0.0:${PORT}`);
     });
 } catch (error) {
     console.error('Failed to start server:', error);
