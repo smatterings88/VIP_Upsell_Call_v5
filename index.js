@@ -2,6 +2,20 @@ import twilio from 'twilio';
 import https from 'https';
 import express from 'express';
 
+// Validate environment variables
+const requiredEnvVars = [
+  'TWILIO_ACCOUNT_SID',
+  'TWILIO_AUTH_TOKEN',
+  'TWILIO_PHONE_NUMBER',
+  'ULTRAVOX_API_KEY'
+];
+
+const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
+if (missingEnvVars.length > 0) {
+  console.error('Missing required environment variables:', missingEnvVars);
+  process.exit(1);
+}
+
 // Twilio configuration
 const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
 const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
@@ -12,7 +26,8 @@ const ULTRAVOX_API_KEY = process.env.ULTRAVOX_API_KEY;
 
 async function createUltravoxCall(clientName) {
     const systemPrompt = `
-You are a h
+You are a helpful assistant.
+
 Ultravox-Optimized VIP Upsell Script (v5.0 - Persona-Based Closer)
 
 --------------------------------------------------------
@@ -181,8 +196,6 @@ IF NOT INTERESTED
 "No worries—I just wanted to make sure you knew it was available. Enjoy the event—you're going to love it either way."
 
 --------------------------------------------------------
-elpful assistant.
-
 `;
     
     const ULTRAVOX_CALL_CONFIG = {
@@ -194,26 +207,26 @@ elpful assistant.
         medium: { "twilio": {} }
     };
 
-    const request = https.request('https://api.ultravox.ai/api/calls', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-API-Key': ULTRAVOX_API_KEY
-        }
-    });
-
-    return new Promise((resolve, reject) => {
-        let data = '';
-
-        request.on('response', (response) => {
-            response.on('data', chunk => data += chunk);
-            response.on('end', () => resolve(JSON.parse(data)));
+    try {
+        const response = await fetch('https://api.ultravox.ai/api/calls', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-API-Key': ULTRAVOX_API_KEY
+            },
+            body: JSON.stringify(ULTRAVOX_CALL_CONFIG)
         });
 
-        request.on('error', reject);
-        request.write(JSON.stringify(ULTRAVOX_CALL_CONFIG));
-        request.end();
-    });
+        if (!response.ok) {
+            throw new Error(`Ultravox API error: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('Error creating Ultravox call:', error);
+        throw error;
+    }
 }
 
 async function initiateCall(clientName, phoneNumber) {
@@ -232,12 +245,26 @@ async function initiateCall(clientName, phoneNumber) {
         console.log('Call initiated:', call.sid);
         return call.sid;
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error initiating call:', error);
         throw error;
     }
 }
 
 const app = express();
+
+// Add basic health check endpoint
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
+});
+
+// Add request logging middleware
+app.use((req, res, next) => {
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+    next();
+});
+
+// Parse JSON bodies
+app.use(express.json());
 
 // Handle both GET and POST requests
 app.route('/initiate-call')
@@ -246,12 +273,19 @@ app.route('/initiate-call')
 
 async function handleCall(req, res) {
     try {
-        const clientName = req.query.clientName;
-        const phoneNumber = req.query.phoneNumber;
+        const clientName = req.query.clientName || req.body.clientName;
+        const phoneNumber = req.query.phoneNumber || req.body.phoneNumber;
         
         if (!clientName || !phoneNumber) {
             return res.status(400).json({ 
-                error: 'Missing required query parameters: clientName and phoneNumber' 
+                error: 'Missing required parameters: clientName and phoneNumber' 
+            });
+        }
+
+        // Validate phone number format
+        if (!/^\+\d{10,15}$/.test(phoneNumber)) {
+            return res.status(400).json({
+                error: 'Invalid phone number format. Must be in E.164 format (e.g., +1234567890)'
             });
         }
 
@@ -262,6 +296,7 @@ async function handleCall(req, res) {
             callSid 
         });
     } catch (error) {
+        console.error('Error in handleCall:', error);
         res.status(500).json({ 
             error: 'Failed to initiate call',
             message: error.message 
@@ -270,6 +305,13 @@ async function handleCall(req, res) {
 }
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+
+// Wrap server startup in a try-catch block
+try {
+    app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+    });
+} catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+}
