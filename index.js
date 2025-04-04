@@ -169,16 +169,6 @@ This is how you turn a one-time event into a repeatable business engine.”
 
 ⸻
 
-⏳ TIME-BASED URGENCY PROMPTS
-	•	After 2 minutes:
-“Just keeping you in the loop—you’ve still got about 28 minutes to grab the flash pricing.”
-	•	After 5 minutes:
-“We’re around the 25-minute mark now. If you’re leaning yes, this is the time to jump.”
-	•	After 10 minutes:
-“Only 20 minutes left before the offer resets. Want me to lock it in while we’re talking?”
-
-⸻
-
 🙋‍♀️ UNIVERSAL OBJECTION HANDLING
 	1.	“What’s actually included?”
 “Totally fair. VIP includes private networking, concierge help, Q and A access, replays, and bonuses.
